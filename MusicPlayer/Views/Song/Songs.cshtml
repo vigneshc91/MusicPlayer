@@ -1,0 +1,272 @@
+﻿
+@{
+    MusicPlayer.Models.User user = (MusicPlayer.Models.User)HttpContext.Current.Session["UserProfile"];
+    if (user == null)
+    {
+        Response.Redirect("/User/Login");
+    }
+
+    ViewBag.Title = "Songs";
+
+    var albumId = "";
+    if (Request.Params["album_id"] != null)
+    {
+        albumId = Request.Params["album_id"];
+    }
+    else
+    {
+        Response.Redirect("/Album/Albums");
+    }
+
+}
+<style>
+    td span{
+        padding: 5px;
+    }    
+</style>
+<div id="editModal" class="modal fade" tabindex="-1" role="dialog">   
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title">Edit Song</h4>
+            </div>
+            <div class="modal-body">
+                <div id="result"></div>
+                <form id="editSong" method="post">
+                    <div class="form-group">
+                        <label for="songName">Song Name</label>
+                        <input type="text" class="form-control" id="songName" placeholder="Album Name" />
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="song">Logo</label>
+                        <input type="file" id="song">
+                    </div>
+
+                    <button type="submit" class="btn btn-default">Edit</button>
+                </form>
+            </div>
+
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+
+<div id="deleteModal" class="modal fade" tabindex="-1" role="dialog">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title">Delete Song</h4>
+            </div>
+            <div class="modal-body">
+                <div id="resultDelete"></div>
+
+                <p>Are you sure want to delete the song</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="deleteConfirm" class="btn btn-primary">Yes</button>
+                <button type="button" class="btn btn-danger" data-dismiss="modal">No</button>
+            </div>
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+
+<div class="row">
+    <ol class="breadcrumb">
+        <li class="active"><a href='@string.Format("/Song/Index?album_id={0}", albumId)'>Add Song</a></li>
+    </ol>
+    <div class="btn-group pull-right">
+        <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            <span class="glyphicon glyphicon-filter" aria-hidden="true"></span> Filter <span class="caret"></span>
+        </button>
+        <ul class="dropdown-menu">
+            <li><a href="#" class="filter" data-target="favourite"><span class="glyphicon glyphicon-star" aria-hidden="true"></span> Favourite</a></li>
+            <li><a href="#" class="filter" data-target="unfavourite"><span class="glyphicon glyphicon-star-empty" aria-hidden="true"></span> Unfavourite</a></li>
+            <li><a href="#" class="filter" data-target="all"><span class="glyphicon glyphicon-refresh" aria-hidden="true"></span> All</a></li>
+        </ul>
+    </div>
+    <h2>Songs</h2>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Song Name</th>
+                <th>Player</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+
+    </table>
+</div>
+<script>
+    $(document).ready(function () {
+        $.ajax({
+            url: '/Song/GetSongList',
+            method: 'post',
+            data: { album_id: '@albumId', start: "0", size: "99999999" },
+            success: function (data) {
+                if (data.status) {
+                    var result = "";
+                    if (data.result.length == 0)
+                        result = "<tr><td colspan='5'>No Songs Found</td></tr>";
+                    else
+                    $.each(data.result, function (i, j) {
+                        result += "<tr data-songid='"+j.songid+"'><td class='song-name'>" + j.name + "</td>";
+                        result += "<td><audio controls>";
+                        result += "<source src='" + j.url + "' />";
+                        result += "</audio></td>";
+                        result += "<td>";
+                        result += '<a class="launch-edit-modal" href="#" title="Edit Song"><span class="glyphicon glyphicon-pencil" aria-hidden="true"></span></a>';
+                        result += '<a class="launch-delete-modal" href="#" title="Delete Song"><span class="glyphicon glyphicon-trash" aria-hidden="true"></span></a>';
+                        result += '<a class="mark-unmark-fav" href="#" title="Favourite/Unfavourite">';
+                        if(j.isfavourite)
+                            result += '<span class="glyphicon glyphicon-star" data-status="favourite" aria-hidden="true"></span>';
+                        else
+                            result += '<span class="glyphicon glyphicon-star-empty" data-status="unfavourite" aria-hidden="true"></span>';
+                        result += "</a>";
+                        result += '</td>';
+                        result += "</tr>";
+                    });
+                    $('tbody').html(result);
+                }
+
+            }
+        });
+
+        var song = "";
+
+    function uploadSong(songId, _this) {
+        var formData = new FormData();
+        formData.append("song", $("#song")[0].files[0]);
+        $.ajax({
+            url: '/Song/UploadFile',
+            method: 'post',
+            contentType: false,
+            processData: false,
+            data: formData,
+            success: function (data) {
+                if (data.status) {
+                    song = data.result;
+                    editSong(songId, _this);
+                } else {
+                    $("#result").html('<div class="alert alert-danger" role="alert">' + data.result + '</div>');
+                    song = "";
+                }
+            }
+        });
+    }
+
+    $('#song').change(function (e) {
+        e.preventDefault();
+        var fileName = $("#song").val();
+        fileName = fileName.match(/([^\\]+)(?=\.\w+$)/)[0];
+        $('#editModal #songName').val(fileName);
+    });
+
+    $(document).on('click', '.launch-edit-modal', function (e) {
+        e.preventDefault();
+        var songId = $(this).parents('tr').data('songid');
+        $('#editModal #songName').val($(this).parents('tr').find('.song-name').text());
+        $('#editModal').modal('show');
+        var _this = $(this).parents('tr');
+
+        $(document).on('submit', "#editSong", function (e) {
+            e.preventDefault();
+
+            if ($('#editModal #song').val() != '')
+                uploadSong(songId, _this);
+            else
+                editSong(songId, _this);
+                
+        });
+
+        
+
+    });
+
+    function editSong(songId, _this) {
+        $.ajax({
+            url: '/Song/UpdateSong',
+            method: 'post',
+            data: { song_id: songId, song_name: $('#editModal #songName').val(), song_url: song },
+            success: function (data) {
+                if (data.status) {
+                    $("#result").html('<div class="alert alert-success" role="alert">' + data.result + '</div>');
+                    $(_this).find('.song-name').html($('#editModal #songName').val());
+
+                } else {
+                    $("#result").html('<div class="alert alert-danger" role="alert">' + data.result + '</div>');
+
+                }
+                setTimeout(function () {
+                    $('#result').html('');
+                    $('#editModal').modal('hide');
+                }, 5000);
+                $('#editSong')[0].reset();
+            }
+        });
+    }
+
+    $(document).on('click', '.launch-delete-modal', function (e) {
+        e.preventDefault();
+
+        $('#deleteModal').modal('show');
+        var songId = $(this).parents('tr').data('songid');
+        var _this = $(this).parents('tr');
+
+        $('#deleteConfirm').click(function () {
+            $.ajax({
+                url: '/Song/DeleteSong',
+                method: 'post',
+                data: { song_id: songId },
+                success: function (data) {
+                    if (data.status) {
+                        $("#resultDelete").html('<div class="alert alert-success" role="alert">' + data.result + '</div>');
+                        $(_this).remove();
+                    } else {
+                        $("#resultDelete").html('<div class="alert alert-danger" role="alert">' + data.result + '</div>');
+
+                    }
+                    setTimeout(function () {
+                        $('#resultDelete').html('');
+                        $('#deleteModal').modal('hide');
+                    }, 5000);
+                }
+            });
+        });
+    });
+
+    $(document).on('click', '.mark-unmark-fav', function (e) {
+        e.preventDefault();
+        var songId = $(this).parents('tr').data('songid');
+        var value = "true";
+        if($(this).find('.glyphicon').hasClass('glyphicon-star'))
+            value = "false";
+        var _this = this;
+        $.ajax({
+            url: '/Song/Favourite',
+            method: 'post',
+            data: { song_id: songId, favourite: value },
+            success: function (data) {
+                if (data.status) {
+                    value == "true" ? $(_this).find('.glyphicon').removeClass('glyphicon-star-empty').addClass('glyphicon-star').attr('data-status', "favourite") : $(_this).find('.glyphicon').removeClass('glyphicon-star').addClass('glyphicon-star-empty').attr('data-status', 'unfavourite');
+                }
+            }
+        });
+    });
+
+    $('.filter').on('click', function () {
+        var $target = $(this).data('target');
+        if ($target != 'all') {
+            $('tbody tr').css('display', 'none');
+            $('tbody tr td span[data-status="' + $target + '"]').parents('tr').fadeIn('slow');
+        } else {
+            $('tbody tr').css('display', 'none').fadeIn('slow');
+        }
+    });
+
+    });
+
+</script>
+

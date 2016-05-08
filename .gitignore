@@ -1,0 +1,7 @@
+.vs/
+packages/
+MusicPlayer/bin/
+MusicPlayer/obj/
+MusicPlayer/uploads/logo/
+MusicPlayer/uploads/songs/
+MusicPlayer/MusicPlayer.csproj

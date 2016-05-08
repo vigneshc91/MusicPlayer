@@ -1,0 +1,93 @@
+﻿
+@{
+    MusicPlayer.Models.User user = (MusicPlayer.Models.User)HttpContext.Current.Session["UserProfile"];
+    if (user == null)
+    {
+        Response.Redirect("/User/Login");
+    }
+   
+    ViewBag.Title = "Add Song";
+    var albumId = Request.Params["album_id"];
+}
+
+<div class="row">
+    <ol class="breadcrumb">
+        <li class="active"><a href='@string.Format("/Song/Songs?album_id={0}", albumId)'>View Songs</a></li>
+    </ol>    
+    <div class="col-md-offset-2 col-md-6">
+        <div id="result"></div>
+        <h1>Add Song</h1>
+        <form id="addSong" method="post">
+            <div class="form-group">
+                <label for="songName">Song Name</label>
+                <input type="text" class="form-control" id="songName" placeholder="Song Name" required />
+            </div>
+            
+            <div class="form-group">
+                <label for="song">Select Song</label>
+                <input type="file" id="song" required />
+            </div>
+
+            <button type="submit" class="btn btn-default">Add Song</button>
+        </form>
+    </div>
+</div>
+<script>
+    var song = "";
+    function uploadSong() {
+        var formData = new FormData();
+        formData.append("song", $("#song")[0].files[0]);
+        $.ajax({
+            url: '/Song/UploadFile',
+            method: 'post',
+            contentType: false,
+            processData: false,
+            data: formData,
+            success: function (data) {
+                if (data.status) {
+                    song = data.result;
+                    addSong();
+                } else {
+                    $("#result").html('<div class="alert alert-danger" role="alert">' + data.result + '</div>');
+                    song = "";
+                }
+            }
+        });
+    }
+
+    $('#song').change(function(e){
+        e.preventDefault();
+        var fileName = $("#song").val();
+        fileName = fileName.match(/([^\\]+)(?=\.\w+$)/)[0];
+        $('#songName').val(fileName);
+    });
+
+    $("#addSong").submit(function (e) {
+        e.preventDefault();
+        uploadSong();
+        
+    });
+
+    function addSong() {
+        if (song != "") {
+            $.ajax({
+                url: '/Song/AddSong',
+                method: 'post',
+                data: { album_id: '@albumId', song_name: $('#songName').val(), song_url: song },
+                success: function (data) {
+                    if (data.status) {
+                        $("#result").html('<div class="alert alert-success" role="alert">' + data.result + '</div>');
+
+                    } else {
+                        $("#result").html('<div class="alert alert-danger" role="alert">' + data.result + '</div>');
+
+                    }
+                    setTimeout(function () {
+                        $('#result').html('');
+                    }, 5000);
+                    $('#addSong')[0].reset();
+                }
+            });
+        }
+    }
+</script>
