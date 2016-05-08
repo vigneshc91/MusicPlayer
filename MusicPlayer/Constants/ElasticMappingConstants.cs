@@ -12,7 +12,13 @@ namespace MusicPlayer.Constants
         public const string TYPE_ALBUM = "album";
         public const string TYPE_SONG = "song";
         public const string ID = "id";
+#if DEBUG
         public const string ELASTIC_SEARCH_URL = "http://127.0.0.1:9200/";
+#else
+        public const string ELASTIC_SEARCH_URL = "http://paas:462399d782e1d4a3f21cc1645baf0b57@dori-us-east-1.searchly.com";
+
+#endif
+
     }
 
     public class ConstUser
