@@ -45,7 +45,7 @@
                         <input type="file" id="logo">
                     </div>
 
-                    <button type="submit" class="btn btn-default">Edit</button>
+                    <button type="submit" id="editSumbit" class="btn btn-default">Edit</button>
                 </form>
             </div>
             
@@ -170,7 +170,8 @@
 
         $(document).on('submit', "#editAlbum", function (e) {
             e.preventDefault();
-
+            e.stopPropagation();
+            $('#editSumbit').prop('disabled', true);
             if ($('#editModal #logo').val() != '')
                 uploadLogo(albumId, _this);
             else
@@ -191,19 +192,23 @@
             success: function (data) {
                 if (data.status) {
                     $("#result").html('<div class="alert alert-success" role="alert">' + data.result + '</div>');
-                    $(_this).find('.album-name').html($('#editModal #albumName').val());
+                    if (logo != "")
+                        $(_this).find('.album-logo').attr('src', logo);
+                    $(_this).find('.album-name a').html($('#editModal #albumName').val());
                     $(_this).find('.genere-name').html($('#editModal #genereName').val());
                     $(_this).find('.artist-name').html($('#editModal #artistName').val());
+                    logo = "";
 
                 } else {
                     $("#result").html('<div class="alert alert-danger" role="alert">' + data.result + '</div>');
-
+                    logo = "";
                 }
                 setTimeout(function () {
                     $('#result').html('');
                     $('#editModal').modal('hide');
                 }, 5000);
                 $('#editAlbum')[0].reset();
+                $('#editSumbit').prop('disabled', false);
             }
         });
     }
